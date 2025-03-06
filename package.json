@@ -12,5 +12,8 @@
     "nodemailer": "^6.9.16",
     "streamifier": "^0.1.1",
     "uuid": "^11.0.5"
+  },
+  "scripts": {
+    "start": "node server.js"
   }
 }
