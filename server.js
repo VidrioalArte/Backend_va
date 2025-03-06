@@ -16,9 +16,10 @@ const PORT = 3002;
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: ["http://localhost:5173", "https://cotizador-git-version-secundaria-trxpjonys-projects.vercel.app"], // ✅ Permite también Vercel
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true // ✅ Permite cookies y autenticación si las usas
 }));
 app.use(express.json());
 const __dirname = path.resolve();
@@ -102,7 +103,7 @@ app.post("/api/vidrioalarte/login", (req, res) => {
     }
 
     const SQL_QUERY = "SELECT * FROM usuarios WHERE LOWER(usuario) = LOWER(?)";
-    
+
     DB.query(SQL_QUERY, [usuario], async (err, result) => {
         if (err) {
             console.error("Error en la consulta SQL:", err);
@@ -184,7 +185,7 @@ app.delete("/api/usuarios/:id", (req, res) => {
         if (err) {
             console.error("Error al eliminar usuario:", err);
             return res.status(500).json({ error: "Error al eliminar el usuario." });
-    }
+        }
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: "Usuario no encontrado." });
         }
