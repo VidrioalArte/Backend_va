@@ -435,7 +435,7 @@ app.get("/api/cotizaciones", (req, res) => {
             c.client_name, 
             c.pdf_path, 
             c.email, 
-            c.total_price,  -- Agregar esta línea
+            c.total_precio,
             c.created_at, 
             u.usuario AS nombre_usuario
         FROM 
