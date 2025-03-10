@@ -16,7 +16,7 @@ const PORT = 3002;
 
 // Middleware
 app.use(cors({
-    origin: ["http://localhost:5173", "https://cotizador-git-version-secundaria-trxpjonys-projects.vercel.app"], // ✅ Permite también Vercel
+    origin: ["http://localhost:5173", "https://cotizador-git-version-secundaria-trxpjonys-projects.vercel.app", "https://vidrioalartesas.vercel.app"], // ✅ Permite también Vercel
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true // ✅ Permite cookies y autenticación si las usas
