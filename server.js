@@ -390,10 +390,10 @@ app.delete('/api/detalleProductos/:id', (req, res) => {
 
 // Routes for quotations management
 app.post("/api/cotizaciones", upload.single("pdf"), (req, res) => {
-    const { cotNumber, client_name, email, usuario_id } = req.body;
+    const { cotNumber, client_name, email, usuario_id, total_precio } = req.body; // Add total_precio
     const file = req.file;
 
-    if (!cotNumber || !client_name || !email || !usuario_id || !file) {
+    if (!cotNumber || !client_name || !email || !usuario_id || !file || !total_precio) { // Check for total_precio
         return res.status(400).json({ error: "Faltan datos para guardar la cotización" });
     }
 
@@ -413,10 +413,10 @@ app.post("/api/cotizaciones", upload.single("pdf"), (req, res) => {
             const pdfUrl = result.secure_url;
 
             const SQL_INSERT = `
-                INSERT INTO cotizaciones (cotNumber, client_name, pdf_path, email, usuario_id) 
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO cotizaciones (cotNumber, client_name, pdf_path, email, total_precio, usuario_id) 
+                VALUES (?, ?, ?, ?, ?, ?)
             `;
-            DB.query(SQL_INSERT, [cotNumber, client_name, pdfUrl, email, usuario_id], (err, result) => {
+            DB.query(SQL_INSERT, [cotNumber, client_name, pdfUrl, email, total_precio, usuario_id], (err, result) => {
                 if (err) {
                     console.error("Error al guardar la cotización en la base de datos:", err);
                     return res.status(500).json({ error: "Error al guardar la cotización" });
