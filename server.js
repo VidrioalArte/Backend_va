@@ -409,14 +409,15 @@ app.post("/api/cotizaciones", upload.single("pdf"), (req, res) => {
                 return res.status(500).json({ error: "Error al subir el archivo" });
             }
 
-            // Guardar el URL en la base de datos
+            // Guardar el URL y public_id en la base de datos
             const pdfUrl = result.secure_url;
+            const imagePublicId = result.public_id; // Obtener el public_id de Cloudinary
 
             const SQL_INSERT = `
-                INSERT INTO cotizaciones (cotNumber, client_name, pdf_path, email, total_precio, usuario_id) 
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO cotizaciones (cotNumber, client_name, pdf_path, email, total_precio, image_public_id, usuario_id) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             `;
-            DB.query(SQL_INSERT, [cotNumber, client_name, pdfUrl, email, total_precio, usuario_id], (err, result) => {
+            DB.query(SQL_INSERT, [cotNumber, client_name, pdfUrl, email, total_precio, imagePublicId, usuario_id], (err, result) => {
                 if (err) {
                     console.error("Error al guardar la cotización en la base de datos:", err);
                     return res.status(500).json({ error: "Error al guardar la cotización" });
@@ -454,16 +455,40 @@ app.get("/api/cotizaciones", (req, res) => {
 
 app.delete("/api/cotizaciones/:id", (req, res) => {
     const { id } = req.params;
-    const SQL_QUERY = "DELETE FROM cotizaciones WHERE id = ?";
-    DB.query(SQL_QUERY, [id], (err, result) => {
+
+    // Obtener el public_id de la imagen antes de eliminar la cotización
+    const SQL_GET_PUBLIC_ID = "SELECT image_public_id FROM cotizaciones WHERE id = ?";
+    DB.query(SQL_GET_PUBLIC_ID, [id], (err, result) => {
         if (err) {
-            console.error("Error al eliminar la cotización:", err);
-            return res.status(500).json({ error: "Error al eliminar la cotización." });
+            console.error("Error al obtener el public_id de la cotización:", err);
+            return res.status(500).json({ error: "Error al obtener el public_id de la cotización." });
         }
-        if (result.affectedRows === 0) {
+        if (result.length === 0) {
             return res.status(404).json({ error: "Cotización no encontrada." });
         }
-        res.status(200).json({ message: "Cotización eliminada exitosamente." });
+
+        const imagePublicId = result[0].image_public_id;
+
+        // Eliminar la cotización de la base de datos
+        const SQL_DELETE = "DELETE FROM cotizaciones WHERE id = ?";
+        DB.query(SQL_DELETE, [id], (err, result) => {
+            if (err) {
+                console.error("Error al eliminar la cotización:", err);
+                return res.status(500).json({ error: "Error al eliminar la cotización." });
+            }
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: "Cotización no encontrada." });
+            }
+
+            // Eliminar la imagen de Cloudinary
+            cloudinary.uploader.destroy(imagePublicId, (error, result) => {
+                if (error) {
+                    console.error("Error al eliminar la imagen de Cloudinary:", error);
+                    return res.status(500).json({ error: "Error al eliminar la imagen de Cloudinary." });
+                }
+                res.status(200).json({ message: "Cotización e imagen eliminadas exitosamente." });
+            });
+        });
     });
 });
 
