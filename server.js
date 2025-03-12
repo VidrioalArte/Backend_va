@@ -481,7 +481,7 @@ app.delete("/api/cotizaciones/:id", (req, res) => {
             }
 
             // Eliminar la imagen de Cloudinary
-            cloudinary.uploader.destroy(imagePublicId, (error, result) => {
+            cloudinary.uploader.destroy(imagePublicId, { resource_type: "raw" }, (error, result) => { // Ensure resource_type is set to raw
                 if (error) {
                     console.error("Error al eliminar la imagen de Cloudinary:", error);
                     return res.status(500).json({ error: "Error al eliminar la imagen de Cloudinary." });
