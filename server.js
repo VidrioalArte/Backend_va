@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import { v2 as cloudinary } from 'cloudinary';
+import axios from "axios"; // Ensure axios is imported
 
 dotenv.config();
 
@@ -531,6 +532,28 @@ app.post("/api/send-email", upload.single("pdf"), (req, res) => {
         }
         res.json({ message: "Correo enviado con éxito", info });
     });
+});
+
+app.get('/api/blog-images', async (req, res) => {
+    try {
+        const response = await axios.get(
+            `https://api.cloudinary.com/v1_1/${process.env.CLOUD_NAME}/resources/image`, 
+            {
+                auth: {
+                    username: process.env.CLOUD_API_KEY,
+                    password: process.env.CLOUD_API_SECRET,
+                },
+                params: {
+                    type: "upload",
+                    prefix: "blog", // Filter by the "blog" folder
+                },
+            }
+        );
+        res.json(response.data.resources);
+    } catch (error) {
+        console.error("Error al obtener imágenes de Cloudinary:", error);
+        res.status(500).json({ error: "Error al obtener imágenes de Cloudinary" });
+    }
 });
 
 // Start server
