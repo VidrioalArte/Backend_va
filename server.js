@@ -534,10 +534,12 @@ app.post("/api/send-email", upload.single("pdf"), (req, res) => {
     });
 });
 
+
+//obtener imagenes de la carpeta blog
 app.get('/api/blog-images', async (req, res) => {
     try {
         const response = await axios.get(
-            `https://api.cloudinary.com/v1_1/${process.env.CLOUD_NAME}/resources/image`, 
+            `https://api.cloudinary.com/v1_1/${process.env.CLOUD_NAME}/resources/image`,
             {
                 auth: {
                     username: process.env.CLOUD_API_KEY,
@@ -555,6 +557,19 @@ app.get('/api/blog-images', async (req, res) => {
         res.status(500).json({ error: "Error al obtener imágenes de Cloudinary" });
     }
 });
+
+// Route to fetch posts from the database
+app.get("/api/posts", (req, res) => {
+    const SQL_QUERY = "SELECT * FROM posts ORDER BY fecha DESC";
+    DB.query(SQL_QUERY, (err, result) => {
+        if (err) {
+            console.error("Error fetching posts:", err);
+            return res.status(500).json({ error: "Error fetching posts from the database." });
+        }
+        res.json(result);
+    });
+});
+
 
 // Start server
 app.listen(PORT, () => {
