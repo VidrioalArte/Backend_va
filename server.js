@@ -611,6 +611,45 @@ app.post("/api/posts", upload.single("image"), (req, res) => {
     ).end(file.buffer);
 });
 
+app.delete("/api/posts/:id", (req, res) => {
+    const { id } = req.params;
+
+    // Obtener el public_id de la imagen antes de eliminar el post
+    const SQL_GET_PUBLIC_ID = "SELECT image_public_id FROM posts WHERE id = ?";
+    DB.query(SQL_GET_PUBLIC_ID, [id], (err, result) => {
+        if (err) {
+            console.error("Error al obtener el public_id del post:", err);
+            return res.status(500).json({ error: "Error al obtener el public_id del post." });
+        }
+        if (result.length === 0) {
+            return res.status(404).json({ error: "Post no encontrado." });
+        }
+
+        const imagePublicId = result[0].image_public_id;
+
+        // Eliminar la imagen de Cloudinary
+        cloudinary.uploader.destroy(imagePublicId, { resource_type: "image" }, (error) => {
+            if (error) {
+                console.error("Error al eliminar la imagen de Cloudinary:", error);
+                return res.status(500).json({ error: "Error al eliminar la imagen de Cloudinary." });
+            }
+
+            // Eliminar el post de la base de datos
+            const SQL_DELETE = "DELETE FROM posts WHERE id = ?";
+            DB.query(SQL_DELETE, [id], (err, result) => {
+                if (err) {
+                    console.error("Error al eliminar el post:", err);
+                    return res.status(500).json({ error: "Error al eliminar el post." });
+                }
+                if (result.affectedRows === 0) {
+                    return res.status(404).json({ error: "Post no encontrado." });
+                }
+                res.status(200).json({ message: "Post eliminado exitosamente." });
+            });
+        });
+    });
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Servidor escuchando en http://localhost:${PORT}`);
