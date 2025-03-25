@@ -570,6 +570,45 @@ app.get("/api/posts", (req, res) => {
     });
 });
 
+// Ruta para subir un nuevo post
+app.post("/api/posts", upload.single("image"), (req, res) => {
+    const { title, description, category } = req.body;
+    const file = req.file;
+
+    if (!title || !description || !category || !file) {
+        return res.status(400).json({ error: "Todos los campos son obligatorios." });
+    }
+
+    // Subir la imagen a Cloudinary en la carpeta "blog"
+    cloudinary.uploader.upload_stream(
+        {
+            folder: "blog", // Guardar en la carpeta "blog"
+            public_id: `post_${Date.now()}`,
+            resource_type: "image",
+        },
+        (error, result) => {
+            if (error) {
+                console.error("Error al subir la imagen a Cloudinary:", error);
+                return res.status(500).json({ error: "Error al subir la imagen." });
+            }
+
+            const imageUrl = result.secure_url;
+
+            // Insertar el post en la base de datos
+            const SQL_INSERT = `
+                INSERT INTO posts (title, description, category, image) 
+                VALUES (?, ?, ?, ?)
+            `;
+            DB.query(SQL_INSERT, [title, description, category, imageUrl], (err, dbResult) => {
+                if (err) {
+                    console.error("Error al guardar el post en la base de datos:", err);
+                    return res.status(500).json({ error: "Error al guardar el post." });
+                }
+                res.status(201).json({ message: "Post creado exitosamente." });
+            });
+        }
+    ).end(file.buffer);
+});
 
 // Start server
 app.listen(PORT, () => {
