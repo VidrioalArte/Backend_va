@@ -593,13 +593,14 @@ app.post("/api/posts", upload.single("image"), (req, res) => {
             }
 
             const imageUrl = result.secure_url;
+            const imagePublicId = result.public_id; // Obtener el public_id de Cloudinary
 
             // Insertar el post en la base de datos
             const SQL_INSERT = `
-                INSERT INTO posts (title, description, category, image) 
-                VALUES (?, ?, ?, ?)
+                INSERT INTO posts (title, description, category, image, image_public_id) 
+                VALUES (?, ?, ?, ?, ?)
             `;
-            DB.query(SQL_INSERT, [title, description, category, imageUrl], (err, dbResult) => {
+            DB.query(SQL_INSERT, [title, description, category, imageUrl, imagePublicId], (err, dbResult) => {
                 if (err) {
                     console.error("Error al guardar el post en la base de datos:", err);
                     return res.status(500).json({ error: "Error al guardar el post." });
