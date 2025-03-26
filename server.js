@@ -650,6 +650,91 @@ app.delete("/api/posts/:id", (req, res) => {
     });
 });
 
+// Ruta para actualizar un post
+app.put("/api/posts/:id", upload.single("image"), (req, res) => {
+    const { id } = req.params;
+    const { title, description, category } = req.body;
+    const file = req.file;
+
+    if (!title || !description || !category) {
+        return res.status(400).json({ error: "Todos los campos son obligatorios." });
+    }
+
+    // Obtener el public_id de la imagen antigua
+    const SQL_GET_PUBLIC_ID = "SELECT image_public_id FROM posts WHERE id = ?";
+    DB.query(SQL_GET_PUBLIC_ID, [id], (err, result) => {
+        if (err) {
+            console.error("Error al obtener el public_id del post:", err);
+            return res.status(500).json({ error: "Error al obtener el public_id del post." });
+        }
+        if (result.length === 0) {
+            return res.status(404).json({ error: "Post no encontrado." });
+        }
+
+        const oldImagePublicId = result[0].image_public_id;
+
+        // Si se sube una nueva imagen, subirla a Cloudinary
+        if (file) {
+            cloudinary.uploader.upload_stream(
+                {
+                    folder: "blog",
+                    public_id: `post_${Date.now()}`,
+                    resource_type: "image",
+                },
+                (error, uploadResult) => {
+                    if (error) {
+                        console.error("Error al subir la nueva imagen a Cloudinary:", error);
+                        return res.status(500).json({ error: "Error al subir la nueva imagen." });
+                    }
+
+                    const newImageUrl = uploadResult.secure_url;
+                    const newImagePublicId = uploadResult.public_id;
+
+                    // Actualizar el post en la base de datos
+                    actualizarPost(id, title, description, category, newImageUrl, newImagePublicId, res);
+
+                    // Eliminar la imagen antigua de Cloudinary
+                    cloudinary.uploader.destroy(oldImagePublicId, { resource_type: "image" }, (deleteError) => {
+                        if (deleteError) {
+                            console.error("Error al eliminar la imagen antigua de Cloudinary:", deleteError);
+                        } else {
+                            console.log("Imagen antigua eliminada de Cloudinary:", oldImagePublicId);
+                        }
+                    });
+                }
+            ).end(file.buffer);
+        } else {
+            // Si no se sube una nueva imagen, actualizar solo los demás campos
+            actualizarPost(id, title, description, category, null, null, res);
+        }
+    });
+});
+
+// Función para actualizar el post en la base de datos
+const actualizarPost = (id, title, description, category, imageUrl, imagePublicId, res) => {
+    let SQL_QUERY;
+    let queryParams;
+
+    if (imageUrl && imagePublicId) {
+        SQL_QUERY = "UPDATE posts SET title = ?, description = ?, category = ?, image = ?, image_public_id = ? WHERE id = ?";
+        queryParams = [title, description, category, imageUrl, imagePublicId, id];
+    } else {
+        SQL_QUERY = "UPDATE posts SET title = ?, description = ?, category = ? WHERE id = ?";
+        queryParams = [title, description, category, id];
+    }
+
+    DB.query(SQL_QUERY, queryParams, (err, result) => {
+        if (err) {
+            console.error("Error al actualizar el post:", err);
+            return res.status(500).json({ error: "Error al actualizar el post." });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Post no encontrado." });
+        }
+        res.status(200).json({ message: "Post actualizado exitosamente." });
+    });
+};
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Servidor escuchando en http://localhost:${PORT}`);
