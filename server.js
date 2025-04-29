@@ -735,6 +735,40 @@ const actualizarPost = (id, title, description, category, imageUrl, imagePublicI
     });
 };
 
+// enviar duda o pregunta a travez del formulario de contacto
+app.post("/api/send-question", (req, res) => {
+    const { nombre, apellido, email, telefono, mensaje } = req.body;
+
+    if (!nombre || !apellido || !email || !mensaje) {
+        return res.status(400).json({ error: "Faltan datos obligatorios" });
+    }
+
+    const mailOptions = {
+        from: userGmail,
+        to: userGmail,
+        subject: `Nueva consulta de ${nombre} ${apellido}`,
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2 style="color: #008cba;">Nueva pregunta desde el sitio web</h2>
+                <p><strong>Nombre:</strong> ${nombre} ${apellido}</p>
+                <p><strong>Correo:</strong> ${email}</p>
+                <p><strong>Teléfono:</strong>${telefono}</p>
+                <p><strong>Mensaje:</strong><br>${mensaje}</p>
+                <hr />
+                <p style="font-size: 12px; color: #777;">Enviado automáticamente desde el formulario de contacto.</p>
+            </div>
+        `
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            console.error("Error al enviar la pregunta:", error);
+            return res.status(500).json({ error: "Error al enviar el correo" });
+        }
+        res.json({ message: "Pregunta enviada con éxito", info });
+    });
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Servidor escuchando en http://localhost:${PORT}`);
