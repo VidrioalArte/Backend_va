@@ -438,6 +438,7 @@ app.get("/api/cotizaciones", (req, res) => {
             c.email, 
             c.total_precio,
             c.created_at, 
+            c.estado,
             u.usuario AS nombre_usuario
         FROM 
             cotizaciones c
@@ -452,6 +453,33 @@ app.get("/api/cotizaciones", (req, res) => {
         res.json(result);
     });
 });
+
+app.patch("/api/cotizaciones/:id", (req, res) => {
+    const cotizacionId = req.params.id;
+    const { estado } = req.body;
+
+    // Validar el estado recibido
+    const estadosValidos = ['pendiente', 'facturada', 'cancelada'];
+    if (!estadosValidos.includes(estado)) {
+        return res.status(400).json({ message: "Estado inválido." });
+    }
+
+    const SQL_UPDATE = `UPDATE cotizaciones SET estado = ? WHERE id = ?`;
+
+    DB.query(SQL_UPDATE, [estado, cotizacionId], (err, result) => {
+        if (err) {
+            console.error("Error al actualizar el estado:", err);
+            return res.status(500).json({ message: "Error al actualizar el estado." });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Cotización no encontrada." });
+        }
+
+        res.json({ message: "Estado actualizado correctamente." });
+    });
+});
+
 
 app.delete("/api/cotizaciones/:id", (req, res) => {
     const { id } = req.params;
