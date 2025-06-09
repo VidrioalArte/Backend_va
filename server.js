@@ -348,6 +348,47 @@ app.put('/api/detalleProductos/:id', upload.single("img"), (req, res) => {
     }
 });
 
+// Crear producto y subir imagen a Cloudinary
+app.post("/api/detalleProductos", upload.single("img"), async (req, res) => {
+    const { title, description, precio, color, categoria } = req.body;
+    const file = req.file;
+
+    if (!title || !description || !precio || !color || !categoria || !file) {
+        return res.status(400).json({ error: "Todos los campos son obligatorios." });
+    }
+
+    // Subir imagen a Cloudinary
+    cloudinary.uploader.upload_stream(
+        {
+            folder: "img_catalogo",
+            public_id: `producto_${Date.now()}`,
+            resource_type: "image",
+            width: 643,
+            height: 388,
+            crop: "limit",
+        },
+        (error, result) => {
+            if (error) {
+                console.error("Error al subir la imagen a Cloudinary:", error);
+                return res.status(500).json({ error: "Error al subir la imagen a Cloudinary." });
+            }
+
+            const imageUrl = result.secure_url;
+            const id = uuidv4();
+
+            // Guardar producto en la base de datos
+            const SQL_INSERT = "INSERT INTO detalleProductos (id, title, description, color, precio, img, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            DB.query(SQL_INSERT, [id, title, description, color, precio, imageUrl, categoria], (err, dbResult) => {
+                if (err) {
+                    console.error("Error al guardar el producto:", err);
+                    return res.status(500).json({ error: "Error al guardar el producto." });
+                }
+                res.status(201).json({ message: "Producto agregado correctamente", imageUrl });
+            });
+        }
+    ).end(file.buffer);
+});
+
 // Función para actualizar la base de datos
 const actualizarProducto = (id, title, description, precio, color, imgUrl, categoria, res) => {
     let SQL_QUERY;
@@ -388,6 +429,22 @@ app.delete('/api/detalleProductos/:id', (req, res) => {
         res.status(200).json({ message: "Producto eliminado exitosamente." });
     });
 });
+
+
+// Endpoint para obtener categorías únicas de detalleProductos
+app.get("/api/detalleProductos/categorias", (req, res) => {
+    const SQL_QUERY = "SELECT DISTINCT categoria FROM detalleProductos WHERE categoria IS NOT NULL AND categoria != ''";
+    DB.query(SQL_QUERY, (err, result) => {
+        if (err) {
+            console.error("Error al obtener categorías únicas:", err);
+            return res.status(500).json({ error: "Error al obtener las categorías." });
+        }
+        // Devuelve solo el array de strings
+        const categorias = result.map(row => row.categoria);
+        res.json(categorias);
+    });
+});
+
 
 // Routes for quotations management
 app.post("/api/cotizaciones", upload.single("pdf"), (req, res) => {
