@@ -13,7 +13,7 @@ import axios from "axios"; // Ensure axios is imported
 dotenv.config();
 
 const app = express();
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
 
 // Middleware
 app.use(cors({
@@ -54,7 +54,6 @@ const DB = mysql.createConnection({
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    port: process.env.DB_PORT
 });
 
 DB.connect((err) => {
