@@ -1,5 +1,8 @@
 {
-  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
   "dependencies": {
     "axios": "^1.8.4",
     "bcrypt": "^5.1.1",
@@ -13,8 +16,5 @@
     "nodemailer": "^6.9.16",
     "streamifier": "^0.1.1",
     "uuid": "^11.0.5"
-  },
-  "scripts": {
-    "start": "node app.js"
   }
 }
