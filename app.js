@@ -14,6 +14,7 @@ import { createServer } from "http";
 dotenv.config();
 
 const app = express();
+const router = express.Router();
 const port = process.env.PORT || 3000;
 
 // Middleware
@@ -65,7 +66,11 @@ DB.connect((err) => {
     console.log("✅ Conexión exitosa a la base de datos en Railway 🚀");
 });
 
-const router = express.Router();
+
+// Define tus rutas sobre el router
+router.get("/api/usuarios", (req, res) => {
+    res.json({ msg: "Usuarios funcionando" });
+});
 
 // Obtener un usuario por nombre de usuario
 app.get("/api/usuarios/:usuario", (req, res) => {
@@ -858,7 +863,7 @@ app.post("/api/send-question", (req, res) => {
 app.use("/nodejsapp", router);
 
 createServer(app).listen(port, () => {
-    console.log(`Servidor Node.js escuchando en el puerto ${port}`);
+    console.log(`Servidor corriendo en puerto ${port}`);
 });
 
 // Start server
