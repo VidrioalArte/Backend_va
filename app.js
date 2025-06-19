@@ -853,6 +853,4 @@ app.post("/api/send-question", (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-    console.log(`Servidor escuchando en http://localhost:${PORT}`);
-});
+export default app;
