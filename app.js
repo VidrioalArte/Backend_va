@@ -9,11 +9,12 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import { v2 as cloudinary } from 'cloudinary';
 import axios from "axios"; // Ensure axios is imported
+import { createServer } from "http";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
@@ -850,6 +851,10 @@ app.post("/api/send-question", (req, res) => {
         }
         res.json({ message: "Pregunta enviada con éxito", info });
     });
+});
+
+createServer(app).listen(port, () => {
+  console.log(`Servidor Node.js escuchando en el puerto ${port}`);
 });
 
 // Start server
