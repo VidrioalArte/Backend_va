@@ -1,18 +1,19 @@
-const express = require("express");
-const mysql = require("mysql2");
-const multer = require("multer");
-const cors = require("cors");
-const path = require("path");
-const { v4: uuidv4 } = require("uuid");
-const bcrypt = require("bcrypt");
-const dotenv = require("dotenv");
-const nodemailer = require("nodemailer");
-const cloudinary = require("cloudinary").v2;
-const axios = require("axios");
+import express from "express";
+import mysql from "mysql2";
+import multer from "multer";
+import cors from "cors";
+import path from "path";
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from "bcrypt";
+import dotenv from "dotenv";
+import nodemailer from "nodemailer";
+import { v2 as cloudinary } from 'cloudinary';
+import axios from "axios"; // Ensure axios is imported
 
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 3002;
 
 // Middleware
 app.use(cors({
@@ -852,5 +853,6 @@ app.post("/api/send-question", (req, res) => {
 });
 
 // Start server
-
-module.exports = app;
+app.listen(PORT, () => {
+    console.log(`Servidor escuchando en http://localhost:${PORT}`);
+});
