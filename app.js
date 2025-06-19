@@ -65,6 +65,8 @@ DB.connect((err) => {
     console.log("✅ Conexión exitosa a la base de datos en Railway 🚀");
 });
 
+const router = express.Router();
+
 // Obtener un usuario por nombre de usuario
 app.get("/api/usuarios/:usuario", (req, res) => {
     const { usuario } = req.params;
@@ -853,8 +855,10 @@ app.post("/api/send-question", (req, res) => {
     });
 });
 
+app.use("/nodejsapp", router);
+
 createServer(app).listen(port, () => {
-  console.log(`Servidor Node.js escuchando en el puerto ${port}`);
+    console.log(`Servidor Node.js escuchando en el puerto ${port}`);
 });
 
 // Start server
