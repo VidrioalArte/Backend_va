@@ -73,7 +73,7 @@ router.get("/api/usuarios", (req, res) => {
 });
 
 // Obtener un usuario por nombre de usuario
-app.get("/api/usuarios/:usuario", (req, res) => {
+router.get("/api/usuarios/:usuario", (req, res) => {
     const { usuario } = req.params;
     if (!usuario) {
         return res.status(400).send("El parámetro 'usuario' es necesario.");
@@ -92,7 +92,7 @@ app.get("/api/usuarios/:usuario", (req, res) => {
 });
 
 // Obtener todos los usuarios
-app.get("/api/usuarios", (req, res) => {
+router.get("/api/usuarios", (req, res) => {
     const SQL_QUERY = "SELECT id, usuario, rol FROM usuarios";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
@@ -104,7 +104,7 @@ app.get("/api/usuarios", (req, res) => {
 });
 
 // Login con verificación de contraseña encriptada
-app.post("/api/vidrioalarte/login", (req, res) => {
+router.post("/api/vidrioalarte/login", (req, res) => {
     const { usuario, contraseña } = req.body;
     if (!usuario || !contraseña) {
         return res.status(400).send("Usuario y contraseña son requeridos.");
@@ -135,7 +135,7 @@ app.post("/api/vidrioalarte/login", (req, res) => {
 });
 
 // Actualizar usuario con contraseña encriptada
-app.put("/api/usuarios/:id", async (req, res) => {
+router.put("/api/usuarios/:id", async (req, res) => {
     const { id } = req.params;
     let { usuario, contraseña } = req.body;
 
@@ -186,7 +186,7 @@ app.put("/api/usuarios/:id", async (req, res) => {
 
 
 // Eliminar usuario
-app.delete("/api/usuarios/:id", (req, res) => {
+router.delete("/api/usuarios/:id", (req, res) => {
     const { id } = req.params;
     const SQL_QUERY = "DELETE FROM usuarios WHERE id = ?";
     DB.query(SQL_QUERY, [id], (err, result) => {
@@ -202,7 +202,7 @@ app.delete("/api/usuarios/:id", (req, res) => {
 });
 
 // Crear usuario con contraseña encriptada
-app.post("/api/usuarios", async (req, res) => {
+router.post("/api/usuarios", async (req, res) => {
     const { usuario, contraseña, rol } = req.body;
     if (!usuario || !contraseña || !rol) {
         return res.status(400).json({ error: "Todos los campos son obligatorios." });
@@ -227,7 +227,7 @@ app.post("/api/usuarios", async (req, res) => {
 });
 
 // Routes for catalog management
-app.get("/api/catalogo", (req, res) => {
+router.get("/api/catalogo", (req, res) => {
     const SQL_QUERY = "SELECT * FROM catalogo";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
@@ -238,7 +238,7 @@ app.get("/api/catalogo", (req, res) => {
     });
 });
 
-app.get("/api/marcos", (req, res) => {
+router.get("/api/marcos", (req, res) => {
     const SQL_QUERY = "SELECT * FROM marcos";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
@@ -249,7 +249,7 @@ app.get("/api/marcos", (req, res) => {
     });
 });
 
-app.get("/api/categorias", (req, res) => {
+router.get("/api/categorias", (req, res) => {
     const SQL_QUERY = "SELECT * FROM categorias";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
@@ -260,7 +260,7 @@ app.get("/api/categorias", (req, res) => {
     });
 });
 
-app.get("/api/detalleProductos", (req, res) => {
+router.get("/api/detalleProductos", (req, res) => {
     const SQL_QUERY = "SELECT * FROM detalleProductos";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
@@ -271,7 +271,7 @@ app.get("/api/detalleProductos", (req, res) => {
     });
 });
 
-app.get('/api/precios', (req, res) => {
+router.get('/api/precios', (req, res) => {
     const SQL_QUERY = "SELECT * FROM precios";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
@@ -282,7 +282,7 @@ app.get('/api/precios', (req, res) => {
     });
 });
 
-app.put('/api/precios/:id', (req, res) => {
+router.put('/api/precios/:id', (req, res) => {
     const { id } = req.params;
     const { descripcion, precio } = req.body;
     const SQL_QUERY = "UPDATE precios SET descripcion = ?, precio = ? WHERE id = ?";
@@ -299,7 +299,7 @@ app.put('/api/precios/:id', (req, res) => {
 });
 
 // Routes for product management
-app.post("/productos", upload.single("image"), async (req, res) => {
+router.post("/productos", upload.single("image"), async (req, res) => {
     try {
         const imageUrl = req.file.path;
         const { title, description, color, precio, categoria } = req.body;
@@ -318,7 +318,7 @@ app.post("/productos", upload.single("image"), async (req, res) => {
     }
 });
 
-app.put('/api/detalleProductos/:id', upload.single("img"), (req, res) => {
+router.put('/api/detalleProductos/:id', upload.single("img"), (req, res) => {
     const { id } = req.params;
     const { title, description, precio, color, categoria } = req.body;
     const file = req.file;
@@ -356,7 +356,7 @@ app.put('/api/detalleProductos/:id', upload.single("img"), (req, res) => {
 });
 
 // Crear producto y subir imagen a Cloudinary
-app.post("/api/detalleProductos", upload.single("img"), async (req, res) => {
+router.post("/api/detalleProductos", upload.single("img"), async (req, res) => {
     const { title, description, precio, color, categoria } = req.body;
     const file = req.file;
 
@@ -422,7 +422,7 @@ const actualizarProducto = (id, title, description, precio, color, imgUrl, categ
 };
 
 
-app.delete('/api/detalleProductos/:id', (req, res) => {
+router.delete('/api/detalleProductos/:id', (req, res) => {
     const { id } = req.params;
     const SQL_QUERY = "DELETE FROM detalleProductos WHERE id = ?";
     DB.query(SQL_QUERY, [id], (err, result) => {
@@ -439,7 +439,7 @@ app.delete('/api/detalleProductos/:id', (req, res) => {
 
 
 // Endpoint para obtener categorías únicas de detalleProductos
-app.get("/api/detalleProductos/categorias", (req, res) => {
+router.get("/api/detalleProductos/categorias", (req, res) => {
     const SQL_QUERY = "SELECT DISTINCT categoria FROM detalleProductos WHERE categoria IS NOT NULL AND categoria != ''";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
@@ -454,7 +454,7 @@ app.get("/api/detalleProductos/categorias", (req, res) => {
 
 
 // Routes for quotations management
-app.post("/api/cotizaciones", upload.single("pdf"), (req, res) => {
+router.post("/api/cotizaciones", upload.single("pdf"), (req, res) => {
     const { cotNumber, client_name, email, usuario_id, total_precio, estado } = req.body; // Añadir estado
     const file = req.file;
 
@@ -492,7 +492,7 @@ app.post("/api/cotizaciones", upload.single("pdf"), (req, res) => {
     ).end(file.buffer);
 });
 
-app.get("/api/cotizaciones", (req, res) => {
+router.get("/api/cotizaciones", (req, res) => {
     const SQL_QUERY = `
         SELECT 
             c.id, 
@@ -518,7 +518,7 @@ app.get("/api/cotizaciones", (req, res) => {
     });
 });
 
-app.patch("/api/cotizaciones/:id", (req, res) => {
+router.patch("/api/cotizaciones/:id", (req, res) => {
     const cotizacionId = req.params.id;
     const { estado } = req.body;
 
@@ -545,7 +545,7 @@ app.patch("/api/cotizaciones/:id", (req, res) => {
 });
 
 
-app.delete("/api/cotizaciones/:id", (req, res) => {
+router.delete("/api/cotizaciones/:id", (req, res) => {
     const { id } = req.params;
 
     // Obtener el public_id de la imagen antes de eliminar la cotización
@@ -584,7 +584,7 @@ app.delete("/api/cotizaciones/:id", (req, res) => {
     });
 });
 
-app.post("/api/send-email", upload.single("pdf"), (req, res) => {
+router.post("/api/send-email", upload.single("pdf"), (req, res) => {
     const { email, cotNumber } = req.body;
     const file = req.file;
 
@@ -627,7 +627,7 @@ app.post("/api/send-email", upload.single("pdf"), (req, res) => {
 
 
 //obtener imagenes de la carpeta blog
-app.get('/api/blog-images', async (req, res) => {
+router.get('/api/blog-images', async (req, res) => {
     try {
         const response = await axios.get(
             `https://api.cloudinary.com/v1_1/${process.env.CLOUD_NAME}/resources/image`,
@@ -650,7 +650,7 @@ app.get('/api/blog-images', async (req, res) => {
 });
 
 // Route to fetch posts from the database
-app.get("/api/posts", (req, res) => {
+router.get("/api/posts", (req, res) => {
     const SQL_QUERY = "SELECT * FROM posts ORDER BY fecha DESC";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
@@ -662,7 +662,7 @@ app.get("/api/posts", (req, res) => {
 });
 
 // Ruta para subir un nuevo post
-app.post("/api/posts", upload.single("image"), (req, res) => {
+router.post("/api/posts", upload.single("image"), (req, res) => {
     const { title, description, category } = req.body;
     const file = req.file;
 
@@ -702,7 +702,7 @@ app.post("/api/posts", upload.single("image"), (req, res) => {
     ).end(file.buffer);
 });
 
-app.delete("/api/posts/:id", (req, res) => {
+router.delete("/api/posts/:id", (req, res) => {
     const { id } = req.params;
 
     // Obtener el public_id de la imagen antes de eliminar el post
@@ -742,7 +742,7 @@ app.delete("/api/posts/:id", (req, res) => {
 });
 
 // Ruta para actualizar un post
-app.put("/api/posts/:id", upload.single("image"), (req, res) => {
+router.put("/api/posts/:id", upload.single("image"), (req, res) => {
     const { id } = req.params;
     const { title, description, category } = req.body;
     const file = req.file;
@@ -827,7 +827,7 @@ const actualizarPost = (id, title, description, category, imageUrl, imagePublicI
 };
 
 // enviar duda o pregunta a travez del formulario de contacto
-app.post("/api/send-question", (req, res) => {
+router.post("/api/send-question", (req, res) => {
     const { nombre, apellido, email, telefono, mensaje } = req.body;
 
     if (!nombre || !apellido || !email || !mensaje) {
