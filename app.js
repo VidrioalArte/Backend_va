@@ -261,11 +261,11 @@ router.get("/api/categorias", (req, res) => {
 });
 
 router.get("/api/detalleProductos", (req, res) => {
-    const SQL_QUERY = "SELECT * FROM detalleProductos";
+    const SQL_QUERY = "SELECT * FROM detalleproductos";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
             console.error("Error en la consulta SQL:", err);
-            return res.status(500).send("Error al obtener los datos de detalleProductos.");
+            return res.status(500).send("Error al obtener los datos de detalleproductos.");
         }
         res.json(result);
     });
@@ -304,7 +304,7 @@ router.post("/productos", upload.single("image"), async (req, res) => {
         const imageUrl = req.file.path;
         const { title, description, color, precio, categoria } = req.body;
         const id = uuidv4();
-        const SQL_INSERT = "INSERT INTO detalleProductos (id, title, description, color, precio, img, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        const SQL_INSERT = "INSERT INTO detalleproductos (id, title, description, color, precio, img, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)";
         DB.query(SQL_INSERT, [id, title, description, color, precio, imageUrl, categoria], (err, result) => {
             if (err) {
                 console.error("Error al insertar en la base de datos:", err);
@@ -384,7 +384,7 @@ router.post("/api/detalleProductos", upload.single("img"), async (req, res) => {
             const id = uuidv4();
 
             // Guardar producto en la base de datos
-            const SQL_INSERT = "INSERT INTO detalleProductos (id, title, description, color, precio, img, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)";
+            const SQL_INSERT = "INSERT INTO detalleproductos (id, title, description, color, precio, img, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)";
             DB.query(SQL_INSERT, [id, title, description, color, precio, imageUrl, categoria], (err, dbResult) => {
                 if (err) {
                     console.error("Error al guardar el producto:", err);
@@ -402,10 +402,10 @@ const actualizarProducto = (id, title, description, precio, color, imgUrl, categ
     let queryParams;
 
     if (imgUrl) {
-        SQL_QUERY = "UPDATE detalleProductos SET title = ?, description = ?, precio = ?, color = ?, img = ?, categoria = ? WHERE id = ?";
+        SQL_QUERY = "UPDATE detalleproductos SET title = ?, description = ?, precio = ?, color = ?, img = ?, categoria = ? WHERE id = ?";
         queryParams = [title, description, precio, color, imgUrl, categoria, id];
     } else {
-        SQL_QUERY = "UPDATE detalleProductos SET title = ?, description = ?, precio = ?, color = ?, categoria = ? WHERE id = ?";
+        SQL_QUERY = "UPDATE detalleproductos SET title = ?, description = ?, precio = ?, color = ?, categoria = ? WHERE id = ?";
         queryParams = [title, description, precio, color, categoria, id];
     }
 
@@ -424,7 +424,7 @@ const actualizarProducto = (id, title, description, precio, color, imgUrl, categ
 
 router.delete('/api/detalleProductos/:id', (req, res) => {
     const { id } = req.params;
-    const SQL_QUERY = "DELETE FROM detalleProductos WHERE id = ?";
+    const SQL_QUERY = "DELETE FROM detalleproductos WHERE id = ?";
     DB.query(SQL_QUERY, [id], (err, result) => {
         if (err) {
             console.error("Error al eliminar el producto:", err);
@@ -440,7 +440,7 @@ router.delete('/api/detalleProductos/:id', (req, res) => {
 
 // Endpoint para obtener categorías únicas de detalleProductos
 router.get("/api/detalleProductos/categorias", (req, res) => {
-    const SQL_QUERY = "SELECT DISTINCT categoria FROM detalleProductos WHERE categoria IS NOT NULL AND categoria != ''";
+    const SQL_QUERY = "SELECT DISTINCT categoria FROM detalleproductos WHERE categoria IS NOT NULL AND categoria != ''";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
             console.error("Error al obtener categorías únicas:", err);
