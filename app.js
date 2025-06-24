@@ -74,10 +74,7 @@ DB.connect((err) => {
 });
 
 
-// Define tus rutas sobre el router
-router.get("/api/usuarios", (req, res) => {
-    res.json({ msg: "Usuarios funcionando" });
-});
+
 
 // Obtener un usuario por nombre de usuario
 router.get("/api/usuarios/:usuario", (req, res) => {
