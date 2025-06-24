@@ -95,7 +95,7 @@ router.get("/api/usuarios/:usuario", (req, res) => {
 
 // Obtener todos los usuarios
 router.get("/api/usuarios", (req, res) => {
-    const SQL_QUERY = "SELECT id, usuario, rol FROM usuarios";
+    const SQL_QUERY = "SELECT id, usuario, rol FROM usuarios WHERE estado = 'activo'";
     DB.query(SQL_QUERY, (err, result) => {
         if (err) {
             console.error("Error en la consulta SQL:", err);
@@ -126,6 +126,11 @@ router.post("/api/vidrioalarte/login", (req, res) => {
 
         const user = result[0];
 
+        // ⚠️ Validar estado
+        if (user.estado !== "activo") {
+            return res.status(403).send("Este usuario está inactivo. Contacta al administrador.");
+        }
+
         // Comparar la contraseña usando bcrypt
         const validPassword = await bcrypt.compare(contraseña, user.contraseña);
         if (!validPassword) {
@@ -135,6 +140,7 @@ router.post("/api/vidrioalarte/login", (req, res) => {
         res.send("Login exitoso.");
     });
 });
+
 
 // Actualizar usuario con contraseña encriptada
 router.put("/api/usuarios/:id", async (req, res) => {
@@ -187,19 +193,19 @@ router.put("/api/usuarios/:id", async (req, res) => {
 });
 
 
-// Eliminar usuario
+// Desactivar usuario (en vez de eliminar)
 router.delete("/api/usuarios/:id", (req, res) => {
     const { id } = req.params;
-    const SQL_QUERY = "DELETE FROM usuarios WHERE id = ?";
+    const SQL_QUERY = "UPDATE usuarios SET estado = 'inactivo' WHERE id = ?";
     DB.query(SQL_QUERY, [id], (err, result) => {
         if (err) {
-            console.error("Error al eliminar usuario:", err);
-            return res.status(500).json({ error: "Error al eliminar el usuario." });
+            console.error("Error al desactivar usuario:", err);
+            return res.status(500).json({ error: "Error al desactivar el usuario." });
         }
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: "Usuario no encontrado." });
         }
-        res.status(200).json({ message: "Usuario eliminado exitosamente." });
+        res.status(200).json({ message: "Usuario desactivado exitosamente." });
     });
 });
 
