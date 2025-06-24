@@ -74,8 +74,6 @@ DB.connect((err) => {
 });
 
 
-
-
 // Obtener un usuario por nombre de usuario
 router.get("/api/usuarios/:usuario", (req, res) => {
     const { usuario } = req.params;
