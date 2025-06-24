@@ -19,11 +19,18 @@ const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-    origin: ["http://localhost:5173", "https://cotizador-git-version-secundaria-trxpjonys-projects.vercel.app", "https://vidrioalartesas.vercel.app"], // ✅ Permite también Vercel
+    origin: [
+        "http://localhost:5173",
+        "https://cotizador-git-version-secundaria-trxpjonys-projects.vercel.app",
+        "https://vidrioalartesas.vercel.app",
+        "https://www.vidrioalarte.com", // 👈 Agrega esto
+        "https://vidrioalarte.com"      // También recomendable
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true // ✅ Permite cookies y autenticación si las usas
+    credentials: true
 }));
+
 app.use(express.json());
 const __dirname = path.resolve();
 app.use("/img", express.static(path.join(__dirname, "../img")));
