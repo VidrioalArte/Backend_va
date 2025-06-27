@@ -35,7 +35,7 @@ app.use(express.json());
 
 const __dirname = path.resolve();
 // Sirve archivos estáticos primero
-app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+app.use("/nodejsapp/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 // Tu router
 app.use("/nodejsapp", router);
