@@ -7,9 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
-import { v2 as cloudinary } from 'cloudinary';
 import axios from "axios"; // Ensure axios is imported
 import { createServer } from "http";
+import fs from "fs"; // Agrega esta línea al inicio
 
 dotenv.config();
 
@@ -32,17 +32,21 @@ app.use(cors({
 }));
 
 app.use(express.json());
-const __dirname = path.resolve();
-app.use("/img", express.static(path.join(__dirname, "../img")));
 
-cloudinary.config({
-    cloud_name: process.env.CLOUD_NAME, // Añade tus credenciales
-    api_key: process.env.CLOUD_API_KEY,
-    api_secret: process.env.CLOUD_API_SECRET,
+const __dirname = path.resolve();
+app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+
+
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(__dirname, "public/uploads/img_catalogo")); // Ruta absoluta
+    },
+    filename: function (req, file, cb) {
+        const uniqueName = `producto_${Date.now()}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+    }
 });
 
-// Multer configuration for file uploads
-const storage = multer.memoryStorage(); // Usamos memoria en lugar de guardar el archivo localmente
 const upload = multer({ storage });
 
 
@@ -335,35 +339,45 @@ router.put('/api/detalleProductos/:id', upload.single("img"), (req, res) => {
         return res.status(400).json({ error: "Faltan datos para actualizar el producto." });
     }
 
-    // Verificar si hay un archivo para subir
     if (file) {
-        cloudinary.uploader.upload_stream(
-            {
-                folder: "img_catalogo",
-                public_id: `producto_${id}_${Date.now()}`,
-                resource_type: "image",
-                width: 643,
-                height: 388,
-                crop: "limit", // Esto mantiene la proporción y no recorta la imagen
-            },
-            (error, result) => {
-                if (error) {
-                    console.error("Error al subir la imagen a Cloudinary:", error);
-                    return res.status(500).json({ error: "Error al subir la imagen a Cloudinary." });
-                }
-
-                console.log("Imagen subida a Cloudinary:", result.secure_url);
-                actualizarProducto(id, title, description, precio, color, result.secure_url, categoria, res);
+        // 1. Obtener la ruta de la imagen anterior
+        const SQL_GET_IMG = "SELECT img FROM detalleproductos WHERE id = ?";
+        DB.query(SQL_GET_IMG, [id], (err, result) => {
+            if (err) {
+                console.error("Error al obtener la imagen anterior:", err);
+                return res.status(500).json({ error: "Error al obtener la imagen anterior." });
             }
-        ).end(file.buffer);
+            if (result.length === 0) {
+                return res.status(404).json({ error: "Producto no encontrado." });
+            }
 
+            const oldImgPath = result[0].img;
+            // Eliminar la imagen anterior si es local
+            if (oldImgPath && oldImgPath.startsWith(process.env.BASE_URL ? process.env.BASE_URL : "")) {
+                const relativePath = oldImgPath.replace(process.env.BASE_URL, "");
+                const absolutePath = path.join(__dirname, "public", relativePath);
+                fs.unlink(absolutePath, (fsErr) => {
+                    if (fsErr && fsErr.code !== "ENOENT") {
+                        console.error("Error al eliminar la imagen anterior:", fsErr);
+                        // No retornes aquí, continúa con la actualización
+                    }
+                    // 2. Guardar la nueva imagen y actualizar el registro
+                    const newImgUrl = `${process.env.BASE_URL}/uploads/img_catalogo/${file.filename}`;
+                    actualizarProducto(id, title, description, precio, color, newImgUrl, categoria, res);
+                });
+            } else {
+                // Si no hay imagen anterior o es externa, solo actualiza con la nueva imagen
+                const newImgUrl = `${process.env.BASE_URL}/uploads/img_catalogo/${file.filename}`;
+                actualizarProducto(id, title, description, precio, color, newImgUrl, categoria, res);
+            }
+        });
     } else {
-        // Si no hay imagen, actualizar sin modificar la imagen existente
+        // Si no hay nueva imagen, actualizar solo los demás campos
         actualizarProducto(id, title, description, precio, color, null, categoria, res);
     }
 });
 
-// Crear producto y subir imagen a Cloudinary
+// Crear producto y subir imagen 
 router.post("/api/detalleProductos", upload.single("img"), async (req, res) => {
     const { title, description, precio, color, categoria } = req.body;
     const file = req.file;
@@ -372,36 +386,17 @@ router.post("/api/detalleProductos", upload.single("img"), async (req, res) => {
         return res.status(400).json({ error: "Todos los campos son obligatorios." });
     }
 
-    // Subir imagen a Cloudinary
-    cloudinary.uploader.upload_stream(
-        {
-            folder: "img_catalogo",
-            public_id: `producto_${Date.now()}`,
-            resource_type: "image",
-            width: 643,
-            height: 388,
-            crop: "limit",
-        },
-        (error, result) => {
-            if (error) {
-                console.error("Error al subir la imagen a Cloudinary:", error);
-                return res.status(500).json({ error: "Error al subir la imagen a Cloudinary." });
-            }
+    const imageUrl = `${process.env.BASE_URL}/uploads/img_catalogo/${file.filename}`;
+    const id = uuidv4();
 
-            const imageUrl = result.secure_url;
-            const id = uuidv4();
-
-            // Guardar producto en la base de datos
-            const SQL_INSERT = "INSERT INTO detalleproductos (id, title, description, color, precio, img, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            DB.query(SQL_INSERT, [id, title, description, color, precio, imageUrl, categoria], (err, dbResult) => {
-                if (err) {
-                    console.error("Error al guardar el producto:", err);
-                    return res.status(500).json({ error: "Error al guardar el producto." });
-                }
-                res.status(201).json({ message: "Producto agregado correctamente", imageUrl });
-            });
+    const SQL_INSERT = "INSERT INTO detalleproductos (id, title, description, color, precio, img, categoria) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    DB.query(SQL_INSERT, [id, title, description, color, precio, imageUrl, categoria], (err, dbResult) => {
+        if (err) {
+            console.error("Error al guardar el producto:", err);
+            return res.status(500).json({ error: "Error al guardar el producto." });
         }
-    ).end(file.buffer);
+        res.status(201).json({ message: "Producto agregado correctamente", imageUrl });
+    });
 });
 
 // Función para actualizar la base de datos
@@ -432,8 +427,43 @@ const actualizarProducto = (id, title, description, precio, color, imgUrl, categ
 
 router.delete('/api/detalleProductos/:id', (req, res) => {
     const { id } = req.params;
-    const SQL_QUERY = "DELETE FROM detalleproductos WHERE id = ?";
-    DB.query(SQL_QUERY, [id], (err, result) => {
+    // 1. Obtener la ruta de la imagen antes de eliminar el producto
+    const SQL_GET_IMG = "SELECT img FROM detalleproductos WHERE id = ?";
+    DB.query(SQL_GET_IMG, [id], (err, result) => {
+        if (err) {
+            console.error("Error al obtener la imagen del producto:", err);
+            return res.status(500).json({ error: "Error al obtener la imagen del producto." });
+        }
+        if (result.length === 0) {
+            return res.status(404).json({ error: "Producto no encontrado." });
+        }
+
+        const imgPath = result[0].img;
+        // Solo eliminar si la imagen existe y es local (no URL externa)
+        if (imgPath && imgPath.startsWith(process.env.BASE_URL ? process.env.BASE_URL : "")) {
+            // Extraer la ruta relativa al archivo
+            const relativePath = imgPath.replace(process.env.BASE_URL, "");
+            const absolutePath = path.join(__dirname, "public", relativePath);
+
+            fs.unlink(absolutePath, (fsErr) => {
+                if (fsErr && fsErr.code !== "ENOENT") {
+                    console.error("Error al eliminar la imagen del producto:", fsErr);
+                    // No retornes aquí, intenta eliminar el registro igual
+                }
+                // 2. Eliminar el registro de la base de datos
+                eliminarProductoDB(id, res);
+            });
+        } else {
+            // Si no hay imagen o es externa, solo elimina el registro
+            eliminarProductoDB(id, res);
+        }
+    });
+});
+
+// Función auxiliar para eliminar el producto de la base de datos
+function eliminarProductoDB(id, res) {
+    const SQL_DELETE = "DELETE FROM detalleproductos WHERE id = ?";
+    DB.query(SQL_DELETE, [id], (err, result) => {
         if (err) {
             console.error("Error al eliminar el producto:", err);
             return res.status(500).json({ error: "Error al eliminar el producto." });
@@ -443,7 +473,7 @@ router.delete('/api/detalleProductos/:id', (req, res) => {
         }
         res.status(200).json({ message: "Producto eliminado exitosamente." });
     });
-});
+};
 
 
 // Endpoint para obtener categorías únicas de detalleProductos
@@ -461,43 +491,48 @@ router.get("/api/detalleProductos/categorias", (req, res) => {
 });
 
 
-// Routes for quotations management
-router.post("/api/cotizaciones", upload.single("pdf"), (req, res) => {
-    const { cotNumber, client_name, email, usuario_id, total_precio, estado } = req.body; // Añadir estado
+// Rutas para manejar las cotizaciones
+router.post("/api/cotizaciones", (req, res, next) => {
+    // Usa un middleware multer específico para cotizaciones
+    const cotizacionStorage = multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, path.join(__dirname, "public/uploads/cotizaciones"));
+        },
+        filename: function (req, file, cb) {
+            const uniqueName = `cotizacion_${Date.now()}${path.extname(file.originalname)}`;
+            cb(null, uniqueName);
+        }
+    });
+    const uploadCotizacion = multer({ storage: cotizacionStorage }).single("pdf");
+    uploadCotizacion(req, res, function (err) {
+        if (err) {
+            console.error("Error al guardar el archivo PDF:", err);
+            return res.status(500).json({ error: "Error al guardar el archivo PDF." });
+        }
+        next();
+    });
+}, (req, res) => {
+    const { cotNumber, client_name, email, usuario_id, total_precio, estado } = req.body;
     const file = req.file;
 
     if (!cotNumber || !client_name || !email || !usuario_id || !file || !total_precio) {
         return res.status(400).json({ error: "Faltan datos para guardar la cotización" });
     }
 
-    // Subir a Cloudinary
-    cloudinary.uploader.upload_stream(
-        {
-            resource_type: "raw",
-            public_id: `cotizaciones/${cotNumber}-${uuidv4()}`,
-        },
-        (error, result) => {
-            if (error) {
-                console.error("Error al subir el archivo a Cloudinary:", error);
-                return res.status(500).json({ error: "Error al subir el archivo" });
-            }
+    // Construir la URL pública del archivo PDF
+    const pdfUrl = `${process.env.BASE_URL}/uploads/cotizaciones/${file.filename}`;
 
-            const pdfUrl = result.secure_url;
-            const imagePublicId = result.public_id;
-
-            const SQL_INSERT = `
-                INSERT INTO cotizaciones (cotNumber, client_name, pdf_path, email, total_precio, image_public_id, usuario_id, estado) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `;
-            DB.query(SQL_INSERT, [cotNumber, client_name, pdfUrl, email, total_precio, imagePublicId, usuario_id, estado || 'pendiente'], (err, result) => {
-                if (err) {
-                    console.error("Error al guardar la cotización en la base de datos:", err);
-                    return res.status(500).json({ error: "Error al guardar la cotización" });
-                }
-                res.json({ message: "Cotización almacenada con éxito", cotizacionId: result.insertId });
-            });
+    const SQL_INSERT = `
+        INSERT INTO cotizaciones (cotNumber, client_name, pdf_path, email, total_precio, usuario_id, estado) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    DB.query(SQL_INSERT, [cotNumber, client_name, pdfUrl, email, total_precio, usuario_id, estado || 'pendiente'], (err, result) => {
+        if (err) {
+            console.error("Error al guardar la cotización en la base de datos:", err);
+            return res.status(500).json({ error: "Error al guardar la cotización" });
         }
-    ).end(file.buffer);
+        res.json({ message: "Cotización almacenada con éxito", cotizacionId: result.insertId });
+    });
 });
 
 router.get("/api/cotizaciones", (req, res) => {
@@ -556,41 +591,51 @@ router.patch("/api/cotizaciones/:id", (req, res) => {
 router.delete("/api/cotizaciones/:id", (req, res) => {
     const { id } = req.params;
 
-    // Obtener el public_id de la imagen antes de eliminar la cotización
-    const SQL_GET_PUBLIC_ID = "SELECT image_public_id FROM cotizaciones WHERE id = ?";
-    DB.query(SQL_GET_PUBLIC_ID, [id], (err, result) => {
+    // Obtener la ruta del PDF antes de eliminar la cotización
+    const SQL_GET_PDF = "SELECT pdf_path FROM cotizaciones WHERE id = ?";
+    DB.query(SQL_GET_PDF, [id], (err, result) => {
         if (err) {
-            console.error("Error al obtener el public_id de la cotización:", err);
-            return res.status(500).json({ error: "Error al obtener el public_id de la cotización." });
+            console.error("Error al obtener la ruta del PDF de la cotización:", err);
+            return res.status(500).json({ error: "Error al obtener la ruta del PDF de la cotización." });
         }
         if (result.length === 0) {
             return res.status(404).json({ error: "Cotización no encontrada." });
         }
 
-        const imagePublicId = result[0].image_public_id;
+        const pdfPath = result[0].pdf_path;
+        // Solo eliminar si la ruta existe y es local
+        if (pdfPath && pdfPath.startsWith(process.env.BASE_URL ? process.env.BASE_URL : "")) {
+            const relativePath = pdfPath.replace(process.env.BASE_URL, "");
+            const absolutePath = path.join(__dirname, "public", relativePath);
 
-        // Eliminar la cotización de la base de datos
-        const SQL_DELETE = "DELETE FROM cotizaciones WHERE id = ?";
-        DB.query(SQL_DELETE, [id], (err, result) => {
-            if (err) {
-                console.error("Error al eliminar la cotización:", err);
-                return res.status(500).json({ error: "Error al eliminar la cotización." });
-            }
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ error: "Cotización no encontrada." });
-            }
-
-            // Eliminar la imagen de Cloudinary
-            cloudinary.uploader.destroy(imagePublicId, { resource_type: "raw" }, (error, result) => { // Ensure resource_type is set to raw
-                if (error) {
-                    console.error("Error al eliminar documento de Cloudinary:", error);
-                    return res.status(500).json({ error: "Error al eliminar documento de Cloudinary." });
+            fs.unlink(absolutePath, (fsErr) => {
+                if (fsErr && fsErr.code !== "ENOENT") {
+                    console.error("Error al eliminar el PDF de la cotización:", fsErr);
+                    // No retornes aquí, intenta eliminar el registro igual
                 }
-                res.status(200).json({ message: "Cotización eliminada exitosamente." });
+                eliminarCotizacionDB(id, res);
             });
-        });
+        } else {
+            // Si no hay PDF o es externo, solo elimina el registro
+            eliminarCotizacionDB(id, res);
+        }
     });
 });
+
+// Función auxiliar para eliminar la cotización de la base de datos
+function eliminarCotizacionDB(id, res) {
+    const SQL_DELETE = "DELETE FROM cotizaciones WHERE id = ?";
+    DB.query(SQL_DELETE, [id], (err, result) => {
+        if (err) {
+            console.error("Error al eliminar la cotización:", err);
+            return res.status(500).json({ error: "Error al eliminar la cotización." });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Cotización no encontrada." });
+        }
+        res.status(200).json({ message: "Cotización eliminada exitosamente." });
+    });
+};
 
 router.post("/api/send-email", upload.single("pdf"), (req, res) => {
     const { email, cotNumber } = req.body;
@@ -637,23 +682,25 @@ router.post("/api/send-email", upload.single("pdf"), (req, res) => {
 //obtener imagenes de la carpeta blog
 router.get('/api/blog-images', async (req, res) => {
     try {
-        const response = await axios.get(
-            `https://api.cloudinary.com/v1_1/${process.env.CLOUD_NAME}/resources/image`,
-            {
-                auth: {
-                    username: process.env.CLOUD_API_KEY,
-                    password: process.env.CLOUD_API_SECRET,
-                },
-                params: {
-                    type: "upload",
-                    prefix: "blog", // Filter by the "blog" folder
-                },
+        const blogDir = path.join(__dirname, "public/uploads/blog");
+        fs.readdir(blogDir, (err, files) => {
+            if (err) {
+                console.error("Error al leer la carpeta de imágenes del blog:", err);
+                return res.status(500).json({ error: "Error al leer la carpeta de imágenes del blog" });
             }
-        );
-        res.json(response.data.resources);
+            // Filtrar solo archivos de imagen comunes
+            const imageFiles = files.filter(file =>
+                /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(file)
+            );
+            // Construir URLs públicas
+            const imageUrls = imageFiles.map(file =>
+                `${process.env.BASE_URL}/uploads/blog/${file}`
+            );
+            res.json(imageUrls);
+        });
     } catch (error) {
-        console.error("Error al obtener imágenes de Cloudinary:", error);
-        res.status(500).json({ error: "Error al obtener imágenes de Cloudinary" });
+        console.error("Error al obtener imágenes del blog:", error);
+        res.status(500).json({ error: "Error al obtener imágenes del blog" });
     }
 });
 
@@ -669,8 +716,27 @@ router.get("/api/posts", (req, res) => {
     });
 });
 
-// Ruta para subir un nuevo post
-router.post("/api/posts", upload.single("image"), (req, res) => {
+// Ruta para subir un nuevo post (imagen local en /uploads/blog)
+router.post("/api/posts", (req, res, next) => {
+    // Multer específico para blog
+    const blogStorage = multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, path.join(__dirname, "public/uploads/blog"));
+        },
+        filename: function (req, file, cb) {
+            const uniqueName = `post_${Date.now()}${path.extname(file.originalname)}`;
+            cb(null, uniqueName);
+        }
+    });
+    const uploadBlog = multer({ storage: blogStorage }).single("image");
+    uploadBlog(req, res, function (err) {
+        if (err) {
+            console.error("Error al guardar la imagen del post:", err);
+            return res.status(500).json({ error: "Error al guardar la imagen del post." });
+        }
+        next();
+    });
+}, (req, res) => {
     const { title, description, category } = req.body;
     const file = req.file;
 
@@ -678,79 +744,93 @@ router.post("/api/posts", upload.single("image"), (req, res) => {
         return res.status(400).json({ error: "Todos los campos son obligatorios." });
     }
 
-    // Subir la imagen a Cloudinary en la carpeta "blog"
-    cloudinary.uploader.upload_stream(
-        {
-            folder: "blog", // Guardar en la carpeta "blog"
-            public_id: `post_${Date.now()}`,
-            resource_type: "image",
-        },
-        (error, result) => {
-            if (error) {
-                console.error("Error al subir la imagen a Cloudinary:", error);
-                return res.status(500).json({ error: "Error al subir la imagen." });
-            }
+    // Construir la URL pública de la imagen
+    const imageUrl = `${process.env.BASE_URL}/uploads/blog/${file.filename}`;
 
-            const imageUrl = result.secure_url;
-            const imagePublicId = result.public_id; // Obtener el public_id de Cloudinary
-
-            // Insertar el post en la base de datos
-            const SQL_INSERT = `
-                INSERT INTO posts (title, description, category, image, image_public_id) 
-                VALUES (?, ?, ?, ?, ?)
-            `;
-            DB.query(SQL_INSERT, [title, description, category, imageUrl, imagePublicId], (err, dbResult) => {
-                if (err) {
-                    console.error("Error al guardar el post en la base de datos:", err);
-                    return res.status(500).json({ error: "Error al guardar el post." });
-                }
-                res.status(201).json({ message: "Post creado exitosamente." });
-            });
+    // Insertar el post en la base de datos
+    const SQL_INSERT = `
+        INSERT INTO posts (title, description, category, image) 
+        VALUES (?, ?, ?, ?)
+    `;
+    DB.query(SQL_INSERT, [title, description, category, imageUrl], (err, dbResult) => {
+        if (err) {
+            console.error("Error al guardar el post en la base de datos:", err);
+            return res.status(500).json({ error: "Error al guardar el post." });
         }
-    ).end(file.buffer);
+        res.status(201).json({ message: "Post creado exitosamente." });
+    });
 });
 
 router.delete("/api/posts/:id", (req, res) => {
     const { id } = req.params;
 
-    // Obtener el public_id de la imagen antes de eliminar el post
-    const SQL_GET_PUBLIC_ID = "SELECT image_public_id FROM posts WHERE id = ?";
-    DB.query(SQL_GET_PUBLIC_ID, [id], (err, result) => {
+    // Obtener la ruta de la imagen antes de eliminar el post
+    const SQL_GET_IMG = "SELECT image FROM posts WHERE id = ?";
+    DB.query(SQL_GET_IMG, [id], (err, result) => {
         if (err) {
-            console.error("Error al obtener el public_id del post:", err);
-            return res.status(500).json({ error: "Error al obtener el public_id del post." });
+            console.error("Error al obtener la imagen del post:", err);
+            return res.status(500).json({ error: "Error al obtener la imagen del post." });
         }
         if (result.length === 0) {
             return res.status(404).json({ error: "Post no encontrado." });
         }
 
-        const imagePublicId = result[0].image_public_id;
+        const imgPath = result[0].image;
+        // Eliminar la imagen si es local
+        if (imgPath && imgPath.startsWith(process.env.BASE_URL ? process.env.BASE_URL : "")) {
+            const relativePath = imgPath.replace(process.env.BASE_URL, "");
+            const absolutePath = path.join(__dirname, "public", relativePath);
 
-        // Eliminar la imagen de Cloudinary
-        cloudinary.uploader.destroy(imagePublicId, { resource_type: "image" }, (error) => {
-            if (error) {
-                console.error("Error al eliminar la imagen de Cloudinary:", error);
-                return res.status(500).json({ error: "Error al eliminar la imagen de Cloudinary." });
-            }
-
-            // Eliminar el post de la base de datos
-            const SQL_DELETE = "DELETE FROM posts WHERE id = ?";
-            DB.query(SQL_DELETE, [id], (err, result) => {
-                if (err) {
-                    console.error("Error al eliminar el post:", err);
-                    return res.status(500).json({ error: "Error al eliminar el post." });
+            fs.unlink(absolutePath, (fsErr) => {
+                if (fsErr && fsErr.code !== "ENOENT") {
+                    console.error("Error al eliminar la imagen del post:", fsErr);
+                    // No retornes aquí, intenta eliminar el registro igual
                 }
-                if (result.affectedRows === 0) {
-                    return res.status(404).json({ error: "Post no encontrado." });
-                }
-                res.status(200).json({ message: "Post eliminado exitosamente." });
+                eliminarPostDB(id, res);
             });
-        });
+        } else {
+            // Si no hay imagen o es externa, solo elimina el registro
+            eliminarPostDB(id, res);
+        }
     });
 });
 
-// Ruta para actualizar un post
-router.put("/api/posts/:id", upload.single("image"), (req, res) => {
+// Función auxiliar para eliminar el post de la base de datos
+function eliminarPostDB(id, res) {
+    const SQL_DELETE = "DELETE FROM posts WHERE id = ?";
+    DB.query(SQL_DELETE, [id], (err, result) => {
+        if (err) {
+            console.error("Error al eliminar el post:", err);
+            return res.status(500).json({ error: "Error al eliminar el post." });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Post no encontrado." });
+        }
+        res.status(200).json({ message: "Post eliminado exitosamente." });
+    });
+};
+
+// Ruta para actualizar un post (remplazo de imagen local)
+router.put("/api/posts/:id", (req, res, next) => {
+    // Multer específico para blog
+    const blogStorage = multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, path.join(__dirname, "public/uploads/blog"));
+        },
+        filename: function (req, file, cb) {
+            const uniqueName = `post_${Date.now()}${path.extname(file.originalname)}`;
+            cb(null, uniqueName);
+        }
+    });
+    const uploadBlog = multer({ storage: blogStorage }).single("image");
+    uploadBlog(req, res, function (err) {
+        if (err) {
+            console.error("Error al guardar la imagen del post:", err);
+            return res.status(500).json({ error: "Error al guardar la imagen del post." });
+        }
+        next();
+    });
+}, (req, res) => {
     const { id } = req.params;
     const { title, description, category } = req.body;
     const file = req.file;
@@ -759,64 +839,53 @@ router.put("/api/posts/:id", upload.single("image"), (req, res) => {
         return res.status(400).json({ error: "Todos los campos son obligatorios." });
     }
 
-    // Obtener el public_id de la imagen antigua
-    const SQL_GET_PUBLIC_ID = "SELECT image_public_id FROM posts WHERE id = ?";
-    DB.query(SQL_GET_PUBLIC_ID, [id], (err, result) => {
+    // Obtener la ruta de la imagen anterior
+    const SQL_GET_IMG = "SELECT image FROM posts WHERE id = ?";
+    DB.query(SQL_GET_IMG, [id], (err, result) => {
         if (err) {
-            console.error("Error al obtener el public_id del post:", err);
-            return res.status(500).json({ error: "Error al obtener el public_id del post." });
+            console.error("Error al obtener la imagen anterior del post:", err);
+            return res.status(500).json({ error: "Error al obtener la imagen anterior del post." });
         }
         if (result.length === 0) {
             return res.status(404).json({ error: "Post no encontrado." });
         }
 
-        const oldImagePublicId = result[0].image_public_id;
+        const oldImgPath = result[0].image;
 
-        // Si se sube una nueva imagen, subirla a Cloudinary
         if (file) {
-            cloudinary.uploader.upload_stream(
-                {
-                    folder: "blog",
-                    public_id: `post_${Date.now()}`,
-                    resource_type: "image",
-                },
-                (error, uploadResult) => {
-                    if (error) {
-                        console.error("Error al subir la nueva imagen a Cloudinary:", error);
-                        return res.status(500).json({ error: "Error al subir la nueva imagen." });
+            // Eliminar la imagen anterior si es local
+            if (oldImgPath && oldImgPath.startsWith(process.env.BASE_URL ? process.env.BASE_URL : "")) {
+                const relativePath = oldImgPath.replace(process.env.BASE_URL, "");
+                const absolutePath = path.join(__dirname, "public", relativePath);
+                fs.unlink(absolutePath, (fsErr) => {
+                    if (fsErr && fsErr.code !== "ENOENT") {
+                        console.error("Error al eliminar la imagen anterior del post:", fsErr);
+                        // No retornes aquí, continúa con la actualización
                     }
-
-                    const newImageUrl = uploadResult.secure_url;
-                    const newImagePublicId = uploadResult.public_id;
-
-                    // Actualizar el post en la base de datos
-                    actualizarPost(id, title, description, category, newImageUrl, newImagePublicId, res);
-
-                    // Eliminar la imagen antigua de Cloudinary
-                    cloudinary.uploader.destroy(oldImagePublicId, { resource_type: "image" }, (deleteError) => {
-                        if (deleteError) {
-                            console.error("Error al eliminar la imagen antigua de Cloudinary:", deleteError);
-                        } else {
-                            console.log("Imagen antigua eliminada de Cloudinary:", oldImagePublicId);
-                        }
-                    });
-                }
-            ).end(file.buffer);
+                    // Guardar la nueva imagen y actualizar el registro
+                    const newImgUrl = `${process.env.BASE_URL}/uploads/blog/${file.filename}`;
+                    actualizarPostLocal(id, title, description, category, newImgUrl, res);
+                });
+            } else {
+                // Si no hay imagen anterior o es externa, solo actualiza con la nueva imagen
+                const newImgUrl = `${process.env.BASE_URL}/uploads/blog/${file.filename}`;
+                actualizarPostLocal(id, title, description, category, newImgUrl, res);
+            }
         } else {
             // Si no se sube una nueva imagen, actualizar solo los demás campos
-            actualizarPost(id, title, description, category, null, null, res);
+            actualizarPostLocal(id, title, description, category, null, res);
         }
     });
 });
 
-// Función para actualizar el post en la base de datos
-const actualizarPost = (id, title, description, category, imageUrl, imagePublicId, res) => {
+// Función para actualizar el post en la base de datos (local)
+function actualizarPostLocal(id, title, description, category, imageUrl, res) {
     let SQL_QUERY;
     let queryParams;
 
-    if (imageUrl && imagePublicId) {
-        SQL_QUERY = "UPDATE posts SET title = ?, description = ?, category = ?, image = ?, image_public_id = ? WHERE id = ?";
-        queryParams = [title, description, category, imageUrl, imagePublicId, id];
+    if (imageUrl) {
+        SQL_QUERY = "UPDATE posts SET title = ?, description = ?, category = ?, image = ? WHERE id = ?";
+        queryParams = [title, description, category, imageUrl, id];
     } else {
         SQL_QUERY = "UPDATE posts SET title = ?, description = ?, category = ? WHERE id = ?";
         queryParams = [title, description, category, id];
