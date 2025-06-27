@@ -534,6 +534,19 @@ router.post("/api/cotizaciones", (req, res, next) => {
         res.json({ message: "Cotización almacenada con éxito", cotizacionId: result.insertId });
     });
 });
+//descargar cotizaciones
+router.get("/api/cotizaciones/download/:filename", (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, "public/uploads/cotizaciones", filename);
+
+    // Verifica que el archivo exista
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (err) {
+            return res.status(404).json({ error: "Archivo no encontrado" });
+        }
+        res.download(filePath, filename); // Forzar descarga
+    });
+});
 
 router.get("/api/cotizaciones", (req, res) => {
     const SQL_QUERY = `
