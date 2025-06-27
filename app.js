@@ -34,7 +34,16 @@ app.use(cors({
 app.use(express.json());
 
 const __dirname = path.resolve();
+// Sirve archivos estáticos primero
 app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+
+// Tu router
+app.use("/nodejsapp", router);
+
+// Luego, al final, React para todas las demás rutas
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 
 const storage = multer.diskStorage({
