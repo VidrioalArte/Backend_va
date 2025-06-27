@@ -952,6 +952,12 @@ router.post("/api/send-question", (req, res) => {
 
 app.use("/nodejsapp", router);
 
+// Ruta catch-all para frontend (SPA de React)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+
 createServer(app).listen(port, () => {
     console.log(`Servidor corriendo en puerto ${port}`);
 });
