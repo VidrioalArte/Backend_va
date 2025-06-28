@@ -86,6 +86,9 @@ DB.connect((err) => {
     console.log("✅ Conexión exitosa a la base de datos en Railway 🚀");
 });
 
+router.get("/api/ping", (req, res) => {
+    res.status(200).json({ status: "ok" });
+});
 
 // Obtener un usuario por nombre de usuario
 router.get("/api/usuarios/:usuario", (req, res) => {
