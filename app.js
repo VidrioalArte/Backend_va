@@ -670,36 +670,44 @@ router.post("/api/send-email", upload.single("pdf"), (req, res) => {
         return res.status(400).json({ error: "Faltan datos para enviar el correo" });
     }
 
-    const mailOptions = {
-        from: userGmail,
-        to: email,
-        subject: `📄 Cotización #${cotNumber}`,
-        html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
-                <h2 style="color: #008cba; text-align: center;">Vidrio al Arte SAS</h2>
-                <p>Estimado cliente,</p>
-                <p>Adjunto encontrará el archivo correspondiente a la cotización <strong>#${cotNumber}</strong>.</p>
-                <p>Si tiene alguna pregunta o desea más información, no dude en ponerse en contacto con nosotros.</p>
-                <p>Atentamente,</p>
-                <p><strong>Vidrio al Arte SAS</strong></p>
-                <hr>
-                <p style="font-size: 12px; color: #777;">Este es un correo generado automáticamente. Por favor, no responda a este mensaje.</p>
-            </div>
-        `,
-        attachments: [
-            {
-                filename: `${cotNumber}.pdf`,
-                content: file.buffer
-            }
-        ]
-    };
-
-    transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-            console.error("Error al enviar el correo:", error);
-            return res.status(500).json({ error: "Error al enviar el correo" });
+    // Leer el archivo PDF desde disco
+    fs.readFile(file.path, (err, data) => {
+        if (err) {
+            console.error("Error al leer el archivo PDF:", err);
+            return res.status(500).json({ error: "Error al leer el archivo PDF" });
         }
-        res.json({ message: "Correo enviado con éxito", info });
+
+        const mailOptions = {
+            from: userGmail,
+            to: email,
+            subject: `📄 Cotización #${cotNumber}`,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                    <h2 style="color: #008cba; text-align: center;">Vidrio al Arte SAS</h2>
+                    <p>Estimado cliente,</p>
+                    <p>Adjunto encontrará el archivo correspondiente a la cotización <strong>#${cotNumber}</strong>.</p>
+                    <p>Si tiene alguna pregunta o desea más información, no dude en ponerse en contacto con nosotros.</p>
+                    <p>Atentamente,</p>
+                    <p><strong>Vidrio al Arte SAS</strong></p>
+                    <hr>
+                    <p style="font-size: 12px; color: #777;">Este es un correo generado automáticamente. Por favor, no responda a este mensaje.</p>
+                </div>
+            `,
+            attachments: [
+                {
+                    filename: `${cotNumber}.pdf`,
+                    content: data
+                }
+            ]
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error("Error al enviar el correo:", error);
+                return res.status(500).json({ error: "Error al enviar el correo" });
+            }
+            res.json({ message: "Correo enviado con éxito", info });
+        });
     });
 });
 
